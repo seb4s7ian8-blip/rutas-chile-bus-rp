@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🇨🇱 Rutas Bus Chile RP - Central de Transportes Interurbanos</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;800&family=Teko:wght@600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        chile: {
+                            blue: '#0039A6',
+                            red: '#D52B1E',
+                            white: '#FFFFFF',
+                            star: '#FFD700',
+                            bg: '#0F172A',
+                            card: '#1E293B',
+                            lightCard: '#273549',
+                            gold: '#FFB800'
+                        },
+                        bus: {
+                            eme: '#0055A5',
+                            nilahue: '#10B981',
+                            turbus: '#0284C7',
+                            pullman: '#D97706',
+                            talca: '#8B5CF6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        teko: ['Teko', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        #stars-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #cursor-glow {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 57, 166, 0.22) 0%, rgba(213, 43, 30, 0.12) 40%, rgba(0,0,0,0) 70%);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.88);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-panel-chile {
+            background: linear-gradient(135deg, rgba(0, 57, 166, 0.35) 0%, rgba(30, 41, 59, 0.95) 50%, rgba(213, 43, 30, 0.35) 100%);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .led-screen {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: #050b14;
+            color: #ffb800;
+            text-shadow: 0 0 8px rgba(255, 184, 0, 0.8);
+            border: 2px solid rgba(255, 184, 0, 0.4);
+        }
+
+        .chile-ribbon {
+            background: linear-gradient(90deg, #0039A6 0%, #0039A6 33.3%, #FFFFFF 33.3%, #FFFFFF 66.6%, #D52B1E 66.6%, #D52B1E 100%);
+            height: 5px;
+        }
+
+        .cordillera-bg {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 240px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%231e293b' fill-opacity='0.7' d='M0,224L48,208C96,192,192,160,288,176C384,192,480,256,576,261.3C672,267,768,213,864,186.7C960,160,1056,160,1152,176C1248,192,1344,224,1392,240L1440,256L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E") repeat-x bottom;
+            background-size: cover;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.8;
+        }
+
+        @keyframes floatBus {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-6px) rotate(0.2deg); }
+        }
+
+        .animated-bus {
+            animation: floatBus 3.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col selection:bg-chile-blue selection:text-white relative overflow-x-hidden">
+
+    <!-- Interactive Background Effects -->
+    <canvas id="stars-canvas"></canvas>
+    <div class="cordillera-bg"></div>
+    <div id="cursor-glow"></div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <header class="sticky top-0 z-40 w-full glass-panel border-b border-slate-700/80">
+        <div class="chile-ribbon w-full"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-20">
+                
+                <!-- Logo & Brand -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('inicio')">
+                    <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-chile-blue via-blue-600 to-chile-red p-0.5 shadow-lg shadow-blue-900/50 hover:scale-105 transition-transform">
+                        <div class="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center text-amber-400 font-black text-xl">
+                            <i class="fa-solid fa-bus text-amber-400"></i>
+                        </div>
+                        <span class="absolute -top-1 -right-1 text-xs">🇨🇱</span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-black text-2xl tracking-tight text-white font-teko uppercase">RUTAS<span class="text-chile-red">BUS</span><span class="text-blue-400">CHILE</span></span>
+                            <span class="bg-chile-blue/30 text-blue-200 border border-chile-blue/50 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">
+                                <i class="fa-solid fa-star text-amber-400 mr-1"></i> RP Oficial
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 hidden sm:block font-semibold">Central Interurbana • Santiago - Chillán - Pichilemu</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="hidden lg:flex items-center gap-1 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-700 shadow-inner">
+                    <button onclick="switchTab('inicio')" id="nav-inicio" class="nav-btn px-3.5 py-2 text-xs font-bold rounded-xl text-amber-400 bg-slate-800 transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-house"></i> Central
+                    </button>
+                    <button onclick="switchTab('agenda')" id="nav-agenda" class="nav-btn px-3.5 py-2 text-xs font-bold rounded-xl text-slate-300 hover:text-white transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-calendar-days text-blue-400"></i> Programar
+                    </button>
+                    <button onclick="switchTab('rutas')" id="nav-rutas" class="nav-btn px-3.5 py-2 text-xs font-bold rounded-xl text-slate-300 hover:text-white transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-route text-chile-red"></i> Rutas & Mapa
+                    </button>
+                    <button onclick="switchTab('pasajes')" id="nav-pasajes" class="nav-btn px-3.5 py-2 text-xs font-bold rounded-xl text-slate-300 hover:text-white transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-ticket text-emerald-400"></i> Generar Pasaje
+                    </button>
+                    <button onclick="switchTab('peajes')" id="nav-peajes" class="nav-btn px-3.5 py-2 text-xs font-bold rounded-xl text-slate-300 hover:text-white transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-calculator text-amber-400"></i> Peajes & TAG
+                    </button>
+                    <button onclick="switchTab('flota')" id="nav-flota" class="nav-btn px-3.5 py-2 text-xs font-bold rounded-xl text-slate-300 hover:text-white transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-bullhorn text-sky-400"></i> Flota & Bocinas
+                    </button>
+                    <button onclick="switchTab('normativas')" id="nav-normativas" class="nav-btn px-3.5 py-2 text-xs font-bold rounded-xl text-slate-300 hover:text-white transition-all flex items-center gap-1.5">
+                        <i class="fa-solid fa-book text-amber-400"></i> Normativa
+                    </button>
+                </nav>
+
+                <!-- Discord & Sound Actions -->
+                <div class="flex items-center gap-3">
+                    <button onclick="playAirHorn()" class="hidden sm:flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md active:scale-95">
+                        <i class="fa-solid fa-volume-high text-amber-400 animate-bounce"></i> ¡Bocina!
+                    </button>
+
+                    <a href="https://discord.com" target="_blank" class="flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs sm:text-sm font-extrabold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/30 hover:scale-105 active:scale-95">
+                        <i class="fa-brands fa-discord text-base"></i>
+                        <span class="hidden sm:inline">Discord RP</span>
+                    </a>
+                    
+                    <button id="mobile-menu-toggle" onclick="toggleMobileMenu()" class="lg:hidden text-slate-200 hover:text-white p-2.5 rounded-xl bg-slate-800 border border-slate-700">
+                        <i class="fa-solid fa-bars text-lg"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mobile-menu" class="hidden lg:hidden border-t border-slate-800 bg-slate-900/95 px-4 pt-3 pb-5 space-y-2">
+            <button onclick="switchTab('inicio'); toggleMobileMenu();" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold bg-slate-800 text-amber-400 flex items-center gap-3">
+                <i class="fa-solid fa-house w-5"></i> Central Principal
+            </button>
+            <button onclick="switchTab('agenda'); toggleMobileMenu();" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-3">
+                <i class="fa-solid fa-calendar-days w-5 text-blue-400"></i> Programar Salida
+            </button>
+            <button onclick="switchTab('rutas'); toggleMobileMenu();" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-3">
+                <i class="fa-solid fa-route w-5 text-chile-red"></i> Rutas & Mapa
+            </button>
+            <button onclick="switchTab('pasajes'); toggleMobileMenu();" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-3">
+                <i class="fa-solid fa-ticket w-5 text-emerald-400"></i> Generar Pasaje
+            </button>
+            <button onclick="switchTab('peajes'); toggleMobileMenu();" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-3">
+                <i class="fa-solid fa-calculator w-5 text-amber-400"></i> Peajes & Bencina
+            </button>
+            <button onclick="switchTab('flota'); toggleMobileMenu();" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-3">
+                <i class="fa-solid fa-bullhorn w-5 text-sky-400"></i> Flota & Bocina de Bus
+            </button>
+            <button onclick="switchTab('normativas'); toggleMobileMenu();" class="w-full text-left px-4 py-3 rounded-xl text-sm font-bold text-slate-200 hover:bg-slate-800 flex items-center gap-3">
+                <i class="fa-solid fa-book w-5 text-amber-400"></i> Normativa & Modismos
+            </button>
+        </div>
+    </header>
+
+    <main class="relative z-10 flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+
+        <section id="tab-inicio" class="tab-content space-y-10">
+            
+            <div class="relative overflow-hidden rounded-3xl glass-panel-chile p-6 sm:p-10 border border-slate-700 shadow-2xl">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    
+                    <div class="lg:col-span-7 space-y-5">
+                        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700 text-xs font-extrabold text-amber-400">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                            <span>🇨🇱 CENTRAL CHILENA • CORREDOR SANTIAGO - CHILLÁN</span>
+                        </div>
+                        
+                        <h1 class="text-4xl sm:text-6xl font-black text-white tracking-tight leading-none uppercase font-teko">
+                            Recorre la <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-white to-chile-red">Ruta 5 Sur</span> en Bus
+                        </h1>
+                        
+                        <p class="text-slate-200 text-xs sm:text-sm leading-relaxed max-w-2xl font-medium">
+                            ¡Bienvenido al hub de transportes interurbanos más completo! Coordina recorridos por el valle central: Santiago, Rancagua, San Fernando, Pichilemu, Curicó, Talca, Linares, San Carlos y Chillán. Emite pasajes, calcula peajes y sintoniza la radio del chofer.
+                        </p>
+
+                        <!-- Quick Actions -->
+                        <div class="pt-2 flex flex-wrap gap-3">
+                            <button onclick="switchTab('agenda')" class="px-5 py-3 rounded-2xl bg-gradient-to-r from-chile-blue to-blue-700 hover:from-blue-600 hover:to-chile-blue text-white font-extrabold text-xs sm:text-sm transition-all shadow-xl shadow-blue-900/40 hover:scale-105 active:scale-95 flex items-center gap-2">
+                                <i class="fa-solid fa-plus-circle text-amber-400"></i> Agendar Salida
+                            </button>
+                            <button onclick="switchTab('pasajes')" class="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold text-xs sm:text-sm transition-all shadow-xl shadow-emerald-900/40 hover:scale-105 active:scale-95 flex items-center gap-2">
+                                <i class="fa-solid fa-ticket text-amber-300"></i> Generar Pasaje 🇨🇱
+                            </button>
+                            <button onclick="playAirHorn()" class="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs sm:text-sm transition-all shadow-xl shadow-amber-500/30 hover:scale-105 active:scale-95 flex items-center gap-2">
+                                <i class="fa-solid fa-bullhorn"></i> Tocar Bocina
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bus Visual Card -->
+                    <div class="lg:col-span-5 relative flex justify-center items-center">
+                        <div class="animated-bus relative w-full max-w-md p-2">
+                            
+                            <div class="relative bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 rounded-2xl p-5 border-2 border-sky-400/50 shadow-2xl space-y-4">
+                                
+                                <div class="bg-black text-amber-400 font-mono text-center text-xs font-black py-1.5 px-3 rounded border border-amber-500/50 tracking-widest uppercase flex justify-between items-center">
+                                    <span>[08:15]</span>
+                                    <span class="text-amber-300 font-extrabold">SANTIAGO ➔ CHILLÁN</span>
+                                    <span>🇨🇱</span>
+                                </div>
+
+                                <div class="relative rounded-xl overflow-hidden border border-slate-700 bg-gradient-to-b from-slate-800 via-blue-950 to-slate-900 p-4 flex flex-col justify-between min-h-[150px]">
+                                    
+                                    <div class="h-16 bg-slate-950/90 rounded-lg border border-slate-700 p-2 flex justify-between items-start">
+                                        <div class="text-[10px] text-slate-300 font-mono"><i class="fa-solid fa-couch text-amber-400"></i> Salón Cama 180°</div>
+                                        <div class="text-[10px] text-emerald-400 font-mono font-bold">EME BUS RP</div>
+                                    </div>
+
+                                    <div class="pt-3 flex items-center justify-between">
+                                        <div class="w-8 h-4 bg-sky-300 rounded border border-sky-100 shadow-[0_0_12px_rgba(56,189,248,0.9)]"></div>
+
+                                        <div class="w-14 h-9 border border-slate-600 rounded shadow overflow-hidden flex flex-col">
+                                            <div class="h-1/2 bg-white flex">
+                                                <div class="w-1/2 bg-chile-blue flex items-center justify-center">
+                                                    <i class="fa-solid fa-star text-[7px] text-white"></i>
+                                                </div>
+                                                <div class="w-1/2 bg-white"></div>
+                                            </div>
+                                            <div class="h-1/2 bg-chile-red"></div>
+                                        </div>
+
+                                        <div class="bg-white text-slate-900 font-mono font-bold text-[9px] px-2 py-0.5 rounded border border-slate-400">
+                                            BUS-2026
+                                        </div>
+
+                                        <div class="w-8 h-4 bg-sky-300 rounded border border-sky-100 shadow-[0_0_12px_rgba(56,189,248,0.9)]"></div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center justify-between text-[11px] text-slate-300 font-mono pt-1">
+                                    <span><i class="fa-solid fa-road text-sky-400"></i> Peaje Angostura</span>
+                                    <span class="text-emerald-400 font-bold"><i class="fa-solid fa-wifi"></i> Wi-Fi Chofer</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="mt-8 rounded-2xl p-4 led-screen shadow-2xl relative">
+                    <div class="flex flex-wrap items-center justify-between pb-3 border-b border-amber-500/30 text-xs tracking-widest uppercase gap-2">
+                        <span class="flex items-center gap-2">
+                            <i class="fa-solid fa-tower-broadcast text-amber-400 animate-pulse"></i> 
+                            PANEL DE SALIDAS EN VIVO • TERMINAL SAN BORJA SANTIAGO
+                        </span>
+                        <span id="live-time-clock" class="font-mono bg-amber-500/20 px-2.5 py-1 rounded border border-amber-500/30 text-amber-300 font-bold">--:--:-- CLT</span>
+                    </div>
+                    <div class="mt-3 overflow-x-auto">
+                        <table class="w-full text-left text-xs font-mono">
+                            <thead>
+                                <tr class="text-amber-500/70 border-b border-amber-500/20">
+                                    <th class="pb-2">HORA</th>
+                                    <th class="pb-2">RECORRIDO CHILENO</th>
+                                    <th class="pb-2">EMPRESA / BUS</th>
+                                    <th class="pb-2">CHOFER</th>
+                                    <th class="pb-2 text-right">ESTADO</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hero-board-body">
+                                <!-- Populated dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-700 flex items-center gap-4 hover:border-chile-blue transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-chile-blue/30 border border-chile-blue/50 text-blue-300 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-bus"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-white font-teko" id="stat-routes">14</div>
+                        <div class="text-xs text-slate-300 font-medium">Rutas Interurbanas</div>
+                    </div>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl border border-slate-700 flex items-center gap-4 hover:border-emerald-500 transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/30 border border-emerald-500/50 text-emerald-300 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-ticket"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-white font-teko">Pasajes RP</div>
+                        <div class="text-xs text-slate-300 font-medium">Emisión Inmediata</div>
+                    </div>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl border border-slate-700 flex items-center gap-4 hover:border-chile-red transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-chile-red/30 border border-chile-red/50 text-chile-red flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-road"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-white font-teko">Ruta 5 Sur</div>
+                        <div class="text-xs text-slate-300 font-medium">Eje Principal Chile</div>
+                    </div>
+                </div>
+                <div class="glass-panel p-5 rounded-2xl border border-slate-700 flex items-center gap-4 hover:border-amber-400 transition-all">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/30 border border-amber-500/50 text-amber-300 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-coins"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-white font-teko">Peajes CLP</div>
+                        <div class="text-xs text-slate-300 font-medium">Cálculo de Tarifas</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-agenda" class="tab-content hidden space-y-8">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-check text-amber-400"></i> Programar Salida de Bus
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-300">Publica tu recorrido interurbano para que los pasajeros de Discord se unan.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs px-3 py-1.5 rounded-xl flex items-center gap-2 font-mono font-bold">
+                        <i class="fa-solid fa-shield-halved text-amber-400"></i> Bloqueo de Viajes en Ruta
+                    </span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="glass-panel p-6 rounded-3xl border border-slate-700 space-y-4 lg:col-span-1">
+                    <h3 class="text-lg font-bold text-white border-b border-slate-700 pb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-bus-simple text-blue-400"></i> Datos del Recorrido
+                    </h3>
+
+                    <form id="route-schedule-form" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Chofer / Tag de Discord</label>
+                            <input type="text" id="sch-driver" placeholder="Ej: @Chofer_Paredes" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-chile-blue">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Empresa de Bus Chilena</label>
+                            <select id="sch-company" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-chile-blue font-bold text-amber-300">
+                                <option value="EME Bus">🚍 EME Bus</option>
+                                <option value="Buses Nilahue">🚍 Buses Nilahue</option>
+                                <option value="TurBus">🚍 TurBus</option>
+                                <option value="Pullman Bus">🚍 Pullman Bus</option>
+                                <option value="Buses Talca, Paris y Londres">🚍 Buses Talca, Paris y Londres</option>
+                                <option value="Buses Fierro">🚍 Buses Fierro</option>
+                                <option value="Transbus">🚍 Transbus Chile</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Tramo Exclusivo (Santiago - Chillán - Pichilemu)</label>
+                            <select id="sch-route" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-chile-blue">
+                                <option value="Santiago ➔ Rancagua">Santiago ➔ Rancagua</option>
+                                <option value="Santiago ➔ San Fernando">Santiago ➔ San Fernando</option>
+                                <option value="Santiago ➔ Pichilemu">Santiago ➔ Pichilemu (Costa)</option>
+                                <option value="Santiago ➔ Curicó">Santiago ➔ Curicó</option>
+                                <option value="Santiago ➔ Talca">Santiago ➔ Talca</option>
+                                <option value="Santiago ➔ Linares">Santiago ➔ Linares</option>
+                                <option value="Santiago ➔ San Carlos">Santiago ➔ San Carlos</option>
+                                <option value="Santiago ➔ Chillán">Santiago ➔ Chillán</option>
+                                <option value="Chillán ➔ Santiago">Chillán ➔ Santiago</option>
+                                <option value="Pichilemu ➔ Santiago">Pichilemu ➔ Santiago</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-200 mb-1">Hora Salida (CLT)</label>
+                                <input type="time" id="sch-time" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-chile-blue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-200 mb-1">Modelo de Bus</label>
+                                <input type="text" id="sch-bus" placeholder="Ej: Marcopolo G8 1800" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-chile-blue">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Estado del Viaje</label>
+                            <select id="sch-status" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-chile-blue">
+                                <option value="Programado">📌 Programado</option>
+                                <option value="En Ruta">🚍 En Ruta / Viajando (Protegido)</option>
+                                <option value="Embarcando">🧍 Embarcando Pasajeros</option>
+                                <option value="En Peaje">🛣️ En Peaje / Autopista (Protegido)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Frecuencia Radial / Notas</label>
+                            <input type="text" id="sch-notes" placeholder="Ej: Canal 🛩┇rutas #1" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-chile-blue">
+                        </div>
+
+                        <button type="submit" class="w-full bg-gradient-to-r from-chile-blue to-blue-700 hover:from-blue-600 hover:to-chile-blue text-white font-extrabold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95">
+                            <i class="fa-solid fa-paper-plane"></i> Publicar Recorrido
+                        </button>
+                    </form>
+                </div>
+
+                <div class="glass-panel p-6 rounded-3xl border border-slate-700 space-y-4 lg:col-span-2">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-700 pb-3 gap-2">
+                        <div>
+                            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-list-ul text-emerald-400"></i> Salidas Activas e Itinerario
+                            </h3>
+                            <p class="text-[11px] text-slate-300">Identifícate para administrar tus viajes publicados.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-300 font-bold">Mi Usuario:</label>
+                            <select id="user-identity-select" onchange="updateUserIdentity()" class="bg-slate-900 text-amber-300 border border-slate-700 rounded-lg text-xs px-2.5 py-1 font-bold">
+                                <option value="@Chofer_Paredes">@Chofer_Paredes</option>
+                                <option value="@Renato_Bus">@Renato_Bus</option>
+                                <option value="@Noemi_Trans">@Noemi_Trans</option>
+                                <option value="@Pasajero_RP">@Pasajero_RP (Invitado)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="schedule-cards-container" class="space-y-3 max-h-[550px] overflow-y-auto pr-1">
+                        <!-- Dynamically inserted cards -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-rutas" class="tab-content hidden space-y-8">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-map-location-dot text-chile-red"></i> Rutas Chilensis & Mapa de Carretera
+                    </h2>
+                    <p class="text-xs sm:text-sm text-slate-300">Explora la red interurbana Santiago ➔ Chillán y el ramal costero a Pichilemu.</p>
+                </div>
+
+                <div class="relative w-full sm:w-80">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                    <input type="text" id="route-search-input" onkeyup="filterRoutes()" placeholder="Buscar Talca, Pichilemu, Curicó..." class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-chile-blue">
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-3xl border border-slate-700 space-y-4">
+                <h3 class="text-base font-bold text-amber-300 flex items-center justify-between">
+                    <span><i class="fa-solid fa-road text-chile-red mr-2"></i> Tramo Interactivo Ruta 5 Sur & Ramal I-50</span>
+                    <span class="text-xs text-slate-300 font-mono">Total: 400 KM</span>
+                </h3>
+
+                <div class="relative py-6 overflow-x-auto">
+                    <div class="min-w-[700px] flex items-center justify-between relative px-6">
+                        <div class="absolute left-6 right-6 h-2 bg-slate-700 rounded-full top-1/2 -translate-y-1/2"></div>
+                        <div class="absolute left-6 w-3/4 h-2 bg-gradient-to-r from-chile-blue via-blue-500 to-chile-red rounded-full top-1/2 -translate-y-1/2"></div>
+
+                        <button onclick="showCheckpointDetails('santiago')" class="relative z-10 flex flex-col items-center group">
+                            <div class="w-10 h-10 rounded-full bg-chile-blue border-2 border-white text-white flex items-center justify-center font-bold text-xs shadow-lg group-hover:scale-125 transition-transform">STGO</div>
+                            <span class="text-[11px] font-bold text-white mt-2">Santiago</span>
+                            <span class="text-[9px] text-slate-400 font-mono">KM 0</span>
+                        </button>
+
+                        <button onclick="showCheckpointDetails('rancagua')" class="relative z-10 flex flex-col items-center group">
+                            <div class="w-8 h-8 rounded-full bg-blue-600 border-2 border-slate-300 text-white flex items-center justify-center font-bold text-[10px] shadow-lg group-hover:scale-125 transition-transform">RAN</div>
+                            <span class="text-[11px] font-bold text-slate-200 mt-2">Rancagua</span>
+                            <span class="text-[9px] text-slate-400 font-mono">KM 85</span>
+                        </button>
+
+                        <button onclick="showCheckpointDetails('sanfernando')" class="relative z-10 flex flex-col items-center group">
+                            <div class="w-8 h-8 rounded-full bg-blue-700 border-2 border-slate-300 text-white flex items-center justify-center font-bold text-[10px] shadow-lg group-hover:scale-125 transition-transform">SFE</div>
+                            <span class="text-[11px] font-bold text-slate-200 mt-2">San Fernando</span>
+                            <span class="text-[9px] text-slate-400 font-mono">KM 140</span>
+                        </button>
+
+                        <button onclick="showCheckpointDetails('pichilemu')" class="relative z-10 flex flex-col items-center group">
+                            <div class="w-8 h-8 rounded-full bg-emerald-600 border-2 border-slate-300 text-white flex items-center justify-center font-bold text-[10px] shadow-lg group-hover:scale-125 transition-transform">PCH</div>
+                            <span class="text-[11px] font-bold text-emerald-300 mt-2">Pichilemu 🏖️</span>
+                            <span class="text-[9px] text-slate-400 font-mono">KM 210</span>
+                        </button>
+
+                        <button onclick="showCheckpointDetails('curico')" class="relative z-10 flex flex-col items-center group">
+                            <div class="w-8 h-8 rounded-full bg-amber-600 border-2 border-slate-300 text-white flex items-center justify-center font-bold text-[10px] shadow-lg group-hover:scale-125 transition-transform">CUR</div>
+                            <span class="text-[11px] font-bold text-slate-200 mt-2">Curicó</span>
+                            <span class="text-[9px] text-slate-400 font-mono">KM 190</span>
+                        </button>
+
+                        <button onclick="showCheckpointDetails('talca')" class="relative z-10 flex flex-col items-center group">
+                            <div class="w-8 h-8 rounded-full bg-chile-red border-2 border-slate-300 text-white flex items-center justify-center font-bold text-[10px] shadow-lg group-hover:scale-125 transition-transform">TAL</div>
+                            <span class="text-[11px] font-bold text-slate-200 mt-2">Talca</span>
+                            <span class="text-[9px] text-slate-400 font-mono">KM 255</span>
+                        </button>
+
+                        <button onclick="showCheckpointDetails('chillan')" class="relative z-10 flex flex-col items-center group">
+                            <div class="w-10 h-10 rounded-full bg-chile-red border-2 border-amber-400 text-amber-300 flex items-center justify-center font-bold text-xs shadow-lg group-hover:scale-125 transition-transform">CHL</div>
+                            <span class="text-[11px] font-bold text-white mt-2">Chillán</span>
+                            <span class="text-[9px] text-slate-400 font-mono">KM 400</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="checkpoint-info-box" class="bg-slate-900 p-4 rounded-2xl border border-slate-700 text-xs text-slate-300">
+                    <span class="text-amber-400 font-bold"><i class="fa-solid fa-circle-info mr-1"></i> Selecciona un punto en la carretera</span> para ver detalles de terminales y peajes.
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                <button onclick="filterRouteTag('all')" class="route-tag-btn px-4 py-2 rounded-xl text-xs font-bold bg-chile-blue text-white shadow-md">Todas las Rutas</button>
+                <button onclick="filterRouteTag('santiago')" class="route-tag-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-slate-300 border border-slate-700 hover:bg-slate-800">Desde Santiago</button>
+                <button onclick="filterRouteTag('chillan')" class="route-tag-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-slate-300 border border-slate-700 hover:bg-slate-800">Desde Chillán</button>
+                <button onclick="filterRouteTag('pichilemu')" class="route-tag-btn px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-slate-300 border border-slate-700 hover:bg-slate-800">Pichilemu / Costa</button>
+            </div>
+
+            <div id="routes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- JS inserted cards -->
+            </div>
+        </section>
+
+        <section id="tab-pasajes" class="tab-content hidden space-y-8">
+            <div>
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-ticket text-emerald-400"></i> Generador de Boletos y Pasajes RP
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-300">Crea tu pasaje digital interactivo para presentarlo en las salidas del servidor.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                <div class="lg:col-span-5 glass-panel p-6 rounded-3xl border border-slate-700 space-y-4">
+                    <h3 class="text-base font-bold text-white border-b border-slate-700 pb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-amber-400"></i> Datos del Pasajero
+                    </h3>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Nombre del Pasajero / Discord</label>
+                            <input type="text" id="tkt-name" value="Rodrigo Paredes" oninput="updateTicketPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Empresa de Transportes</label>
+                            <select id="tkt-company" onchange="updateTicketPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold text-amber-300 focus:outline-none">
+                                <option value="EME Bus">EME Bus (Salón Cama)</option>
+                                <option value="Buses Nilahue">Buses Nilahue (Clásico/Cama)</option>
+                                <option value="TurBus">TurBus Chile</option>
+                                <option value="Pullman Bus">Pullman Bus Costa</option>
+                                <option value="Buses Talca, Paris y Londres">Buses Talca, Paris y Londres</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Origen ➔ Destino</label>
+                            <select id="tkt-route" onchange="updateTicketPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none">
+                                <option value="Santiago ➔ Chillán">Santiago ➔ Chillán</option>
+                                <option value="Santiago ➔ Talca">Santiago ➔ Talca</option>
+                                <option value="Santiago ➔ Pichilemu">Santiago ➔ Pichilemu</option>
+                                <option value="Santiago ➔ Curicó">Santiago ➔ Curicó</option>
+                                <option value="Santiago ➔ Rancagua">Santiago ➔ Rancagua</option>
+                                <option value="Chillán ➔ Santiago">Chillán ➔ Santiago</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-200 mb-1">Asiento (1-44)</label>
+                                <input type="number" id="tkt-seat" min="1" max="44" value="12" oninput="updateTicketPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-200 mb-1">Tarifa CLP</label>
+                                <input type="text" id="tkt-price" value="$14.500 CLP" oninput="updateTicketPreview()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-emerald-400 font-bold font-mono focus:outline-none">
+                            </div>
+                        </div>
+
+                        <button onclick="downloadTicketCard()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-emerald-600 text-white font-extrabold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-copy"></i> Copiar Código del Boleto
+                        </button>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-7 flex justify-center">
+                    <div id="ticket-card-element" class="w-full max-w-md bg-slate-900 rounded-3xl border-2 border-emerald-500/50 p-6 shadow-2xl relative overflow-hidden space-y-5">
+                        <div class="chile-ribbon -mx-6 -mt-6 mb-4"></div>
+
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <div>
+                                <div id="prev-tkt-company" class="text-xl font-black text-amber-400 font-teko uppercase tracking-wider">EME BUS</div>
+                                <div class="text-[10px] text-slate-400 font-mono">BOLETO ELECTRÓNICO DE PASAJERO</div>
+                            </div>
+                            <span class="text-2xl">🇨🇱</span>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800 flex justify-between items-center">
+                                <div>
+                                    <span class="text-[10px] text-slate-500 font-bold block">PASAJERO</span>
+                                    <span id="prev-tkt-name" class="text-sm font-extrabold text-white">Rodrigo Paredes</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[10px] text-slate-500 font-bold block">ASIENTO</span>
+                                    <span id="prev-tkt-seat" class="text-base font-black text-emerald-400 font-mono">N° 12</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2">
+                                <div>
+                                    <span class="text-[10px] text-slate-500 font-bold block">RECORRIDO CHILENO</span>
+                                    <span id="prev-tkt-route" class="text-sm font-bold text-amber-300">Santiago ➔ Chillán</span>
+                                </div>
+                                <div class="flex justify-between items-center pt-2 border-t border-slate-800/60 text-xs">
+                                    <span class="text-slate-400">Terminal San Borja</span>
+                                    <span id="prev-tkt-price" class="text-emerald-400 font-bold font-mono">$14.500 CLP</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-2 border-t border-dashed border-slate-700 flex flex-col items-center gap-1">
+                            <div class="flex gap-1 h-8 items-center">
+                                <div class="w-1 h-full bg-slate-300"></div>
+                                <div class="w-2 h-full bg-slate-300"></div>
+                                <div class="w-0.5 h-full bg-slate-300"></div>
+                                <div class="w-1.5 h-full bg-slate-300"></div>
+                                <div class="w-3 h-full bg-slate-300"></div>
+                                <div class="w-1 h-full bg-slate-300"></div>
+                                <div class="w-2 h-full bg-slate-300"></div>
+                                <div class="w-1 h-full bg-slate-300"></div>
+                                <div class="w-2.5 h-full bg-slate-300"></div>
+                            </div>
+                            <span class="text-[9px] font-mono text-slate-500">CL-RP-BUS-2026-889123</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-peajes" class="tab-content hidden space-y-8">
+            <div>
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-calculator text-amber-400"></i> Calculadora de Peajes & Bencina (Ruta 5 Sur)
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-300">Estima los costos de peajes de autopista y combustible para tu viaje de bus.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="glass-panel p-6 rounded-3xl border border-slate-700 space-y-4 lg:col-span-1">
+                    <h3 class="text-base font-bold text-white border-b border-slate-700 pb-2">Parámetros del Bus</h3>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Seleccionar Tramo</label>
+                            <select id="toll-route-select" onchange="calculateTolls()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none">
+                                <option value="stgo-chillan">Santiago ➔ Chillán (4 Peajes Troncales)</option>
+                                <option value="stgo-talca">Santiago ➔ Talca (3 Peajes Troncales)</option>
+                                <option value="stgo-pichilemu">Santiago ➔ Pichilemu (2 Peajes + Ramal)</option>
+                                <option value="stgo-curico">Santiago ➔ Curicó (2 Peajes Troncales)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Categoría del Vehículo</label>
+                            <select id="toll-category" onchange="calculateTolls()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-bold text-amber-300 focus:outline-none">
+                                <option value="bus2">Bus Interurbano (2 Ejes)</option>
+                                <option value="bus3">Bus Doble Piso (3 Ejes / DD)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-200 mb-1">Precio Diésel / Bencina ($/Litro CLP)</label>
+                            <input type="number" id="fuel-price" value="1050" oninput="calculateTolls()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white font-mono focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 glass-panel p-6 rounded-3xl border border-slate-700 space-y-5">
+                    <h3 class="text-base font-bold text-white border-b border-slate-700 pb-2 flex items-center justify-between">
+                        <span>Desglose de Costos de Carretera</span>
+                        <span class="text-xs text-amber-400 font-mono">Tarifas 2026 Chile</span>
+                    </h3>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                            <span class="text-xs text-slate-400 font-medium block">Total Peajes Troncales</span>
+                            <span id="res-tolls" class="text-2xl font-black text-amber-400 font-mono">$12.800 CLP</span>
+                        </div>
+                        <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                            <span class="text-xs text-slate-400 font-medium block">Est. Diésel Bus</span>
+                            <span id="res-fuel" class="text-2xl font-black text-sky-400 font-mono">$78.750 CLP</span>
+                        </div>
+                        <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                            <span class="text-xs text-slate-400 font-medium block">Costo Total del Viaje</span>
+                            <span id="res-total" class="text-2xl font-black text-emerald-400 font-mono">$91.550 CLP</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <span class="text-xs font-bold text-slate-300">Peajes Incluidos en la Ruta:</span>
+                        <div id="tolls-list-box" class="space-y-2 text-xs font-mono">
+                            <!-- JS populated -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-flota" class="tab-content hidden space-y-8">
+            <div>
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-bullhorn text-sky-400"></i> Flota de Buses Chilena & Sonidos
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-300">Conoce los modelos de buses más famosos de Chile e interactúa con la bocina de aire.</p>
+            </div>
+
+            <div class="glass-panel p-6 rounded-3xl border border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <h3 class="text-lg font-bold text-white">Sintonizador Radial y Bocina de Chofer</h3>
+                    <p class="text-xs text-slate-300">Simulador con Web Audio API de doble tono de aire interurbano.</p>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="playAirHorn()" class="px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all shadow-lg flex items-center gap-2 active:scale-95">
+                        <i class="fa-solid fa-volume-high"></i> Bocina de Aire Bus
+                    </button>
+                    <button onclick="playRetarderSound()" class="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 font-bold text-xs transition-all flex items-center gap-2 active:scale-95">
+                        <i class="fa-solid fa-wind text-sky-400"></i> Freno de Ahogo
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-panel p-5 rounded-3xl border border-slate-700 space-y-3">
+                    <div class="h-32 bg-slate-900 rounded-2xl border border-slate-800 flex items-center justify-center relative overflow-hidden">
+                        <i class="fa-solid fa-bus text-5xl text-blue-400"></i>
+                        <span class="absolute top-2 right-2 bg-chile-blue text-white text-[9px] font-bold px-2 py-0.5 rounded">EME BUS</span>
+                    </div>
+                    <h3 class="text-lg font-black text-white">Marcopolo G8 1800 DD</h3>
+                    <p class="text-xs text-slate-300">El rey del salón cama en la Ruta 5 Sur. Equipado con chasis Scania K440 y asientos reclinables 180°.</p>
+                    <button onclick="playAirHorn()" class="w-full bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 py-2 rounded-xl text-xs font-bold transition-colors">
+                        Probador de Bocina
+                    </button>
+                </div>
+
+                <div class="glass-panel p-5 rounded-3xl border border-slate-700 space-y-3">
+                    <div class="h-32 bg-slate-900 rounded-2xl border border-slate-800 flex items-center justify-center relative overflow-hidden">
+                        <i class="fa-solid fa-bus text-5xl text-emerald-400"></i>
+                        <span class="absolute top-2 right-2 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded">BUSES NILAHUE</span>
+                    </div>
+                    <h3 class="text-lg font-black text-white">Comil Invictus HD</h3>
+                    <p class="text-xs text-slate-300">Especialista en las rutas costeras hacia Pichilemu y Marchigüe. Excelente suspensión para camino interior.</p>
+                    <button onclick="playAirHorn()" class="w-full bg-slate-900 hover:bg-slate-800 text-emerald-400 border border-slate-700 py-2 rounded-xl text-xs font-bold transition-colors">
+                        Probador de Bocina
+                    </button>
+                </div>
+
+                <div class="glass-panel p-5 rounded-3xl border border-slate-700 space-y-3">
+                    <div class="h-32 bg-slate-900 rounded-2xl border border-slate-800 flex items-center justify-center relative overflow-hidden">
+                        <i class="fa-solid fa-bus text-5xl text-amber-400"></i>
+                        <span class="absolute top-2 right-2 bg-amber-600 text-white text-[9px] font-bold px-2 py-0.5 rounded">TALCA PARIS Y LONDRES</span>
+                    </div>
+                    <h3 class="text-lg font-black text-white">Mercedes-Benz O500RSD</h3>
+                    <p class="text-xs text-slate-300">Tradición maulina para viajes exprés entre Santiago, Curicó y Talca con paradas estratégicas.</p>
+                    <button onclick="playAirHorn()" class="w-full bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 py-2 rounded-xl text-xs font-bold transition-colors">
+                        Probador de Bocina
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-normativas" class="tab-content hidden space-y-8">
+            <div>
+                <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-book text-amber-400"></i> Normativa Vial & Diccionario Choferil Chileno 🇨🇱
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-300">Reglamento de la carretera y los modismos típicos de los choferes de bus.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-panel p-6 rounded-3xl border border-slate-700 space-y-2">
+                    <div class="w-9 h-9 rounded-xl bg-chile-blue text-white flex items-center justify-center font-black">1</div>
+                    <h3 class="text-base font-bold text-white">Velocidad Máxima Interurbana</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Límite legal de <span class="font-mono text-amber-400 font-bold">100 km/h</span> para buses en autopistas interurbanas. Obligatorio respetar los radares en Peaje Angostura y Cuesta Chada.
+                    </p>
+                </div>
+
+                <div class="glass-panel p-6 rounded-3xl border border-slate-700 space-y-2">
+                    <div class="w-9 h-9 rounded-xl bg-chile-red text-white flex items-center justify-center font-black">2</div>
+                    <h3 class="text-base font-bold text-white">Fiscalizaciones en Carretera</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        Portar la cartola de recorrido y documentación técnica al pasar por las plazas de pesaje o controles policiales.
+                    </p>
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-3xl border border-slate-700 space-y-4">
+                <h3 class="text-lg font-extrabold text-amber-300 flex items-center gap-2">
+                    <i class="fa-solid fa-comments"></i> Diccionario del Chofer Chileno (Glosario RP)
+                </h3>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs">
+                    <div class="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-amber-400 font-bold block">"Tirar la máquina"</span>
+                        <span class="text-slate-300">Acelerar a fondo para mantener el itinerario de horario en la carretera.</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-amber-400 font-bold block">"Cortar el boleto"</span>
+                        <span class="text-slate-300">Finalizar la venta de pasajes antes de la salida del andén.</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-amber-400 font-bold block">"Pasar a los completos"</span>
+                        <span class="text-slate-300">Hacer una parada técnica tradicional en Talca o Chillán.</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-amber-400 font-bold block">"Freno de Ahogo"</span>
+                        <span class="text-slate-300">Retardador de motor usado en bajadas de cuestas prolongadas.</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-amber-400 font-bold block">"Taco en Pelequén"</span>
+                        <span class="text-slate-300">Congestionamiento vehicular en la curva del ramal a San Fernando.</span>
+                    </div>
+                    <div class="bg-slate-900 p-3 rounded-2xl border border-slate-800">
+                        <span class="text-amber-400 font-bold block">"Tocar la de aire"</span>
+                        <span class="text-slate-300">Dar dos toques a la bocina neumática para avisar el adelantamiento.</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="relative z-10 border-t border-slate-800 glass-panel mt-16 py-8">
+        <div class="max-w-7xl mx-auto px-4 text-center sm:flex sm:items-center sm:justify-between text-xs text-slate-300 space-y-4 sm:space-y-0">
+            <div class="flex items-center justify-center sm:justify-start gap-2 font-medium">
+                <span>🇨🇱</span>
+                <span class="font-bold text-white">Rutas Bus Chile RP</span>
+                <span>• Central de Transportes Interurbanos 2026.</span>
+            </div>
+            <div class="flex justify-center gap-4 font-semibold">
+                <a href="#" onclick="switchTab('inicio'); return false;" class="hover:text-amber-400">Central</a>
+                <a href="#" onclick="switchTab('agenda'); return false;" class="hover:text-amber-400">Agenda</a>
+                <a href="#" onclick="switchTab('pasajes'); return false;" class="hover:text-amber-400">Pasajes</a>
+                <a href="#" onclick="switchTab('peajes'); return false;" class="hover:text-amber-400">Peajes</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let currentUser = '@Chofer_Paredes';
+
+        function playAirHorn() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+
+                const osc1 = ctx.createOscillator();
+                const osc2 = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc1.type = 'sawtooth';
+                osc2.type = 'sawtooth';
+
+                osc1.frequency.setValueAtTime(370, ctx.currentTime);
+                osc2.frequency.setValueAtTime(462, ctx.currentTime);
+
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc1.start();
+                osc2.start();
+                osc1.stop(ctx.currentTime + 0.85);
+                osc2.stop(ctx.currentTime + 0.85);
+
+                showToast('🔊 ¡Bocina de aire tocada en la carretera!');
+            } catch (e) {
+                console.log('Audio Context Error', e);
+            }
+        }
+
+        function playRetarderSound() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const ctx = new AudioCtx();
+
+                const bufferSize = ctx.sampleRate * 0.6;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(300, ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.6);
+
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                noise.start();
+                showToast('💨 Freno de ahogo activado');
+            } catch (e) {
+                console.log(e);
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl font-bold text-xs shadow-2xl flex items-center gap-2 transition-all transform translate-y-2 opacity-0 ${
+                type === 'error' ? 'bg-chile-red text-white' : 'bg-slate-900 border border-slate-700 text-amber-300'
+            }`;
+            toast.innerHTML = `<span>🇨🇱</span> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(`tab-${tabId}`);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-slate-800', 'text-amber-400');
+                btn.classList.add('text-slate-300');
+            });
+
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.classList.add('bg-slate-800', 'text-amber-400');
+            }
+        }
+
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            if (menu) menu.classList.toggle('hidden');
+        }
+
+        function updateUserIdentity() {
+            const sel = document.getElementById('user-identity-select');
+            if (sel) {
+                currentUser = sel.value;
+                renderScheduleCards();
+                showToast(`Sesión cambiada a: ${currentUser}`);
+            }
+        }
+
+        const initialRoutes = [
+            {
+                id: 'stgo-chillan',
+                title: 'field•rutas•santiago•chillan',
+                origin: 'Santiago (Terminal San Borja)',
+                destination: 'Chillán (Terminal María Teresa)',
+                tag: 'santiago',
+                distance: '400 km',
+                time: '4 hrs 30 min',
+                company: 'EME Bus / TurBus',
+                stops: ['Peaje Angostura', 'Rancagua', 'San Fernando', 'Curicó', 'Talca', 'Linares', 'San Carlos'],
+                status: 'Activa'
+            },
+            {
+                id: 'stgo-talca',
+                title: 'field•rutas•santiago•talca',
+                origin: 'Santiago (Terminal Sur)',
+                destination: 'Talca (Terminal Lorenzo Varoli)',
+                tag: 'santiago',
+                distance: '255 km',
+                time: '3 hrs 00 min',
+                company: 'Buses Talca, Paris y Londres',
+                stops: ['Peaje Quinta', 'Curicó'],
+                status: 'Activa'
+            },
+            {
+                id: 'stgo-pichilemu',
+                title: 'field•rutas•santiago•pichilemu',
+                origin: 'Santiago (Terminal San Borja)',
+                destination: 'Pichilemu (Rodoviario)',
+                tag: 'pichilemu',
+                distance: '210 km',
+                time: '3 hrs 20 min',
+                company: 'Buses Nilahue / Transbus',
+                stops: ['Rancagua', 'San Fernando', 'Santa Cruz', 'Marchigüe'],
+                status: 'Activa'
+            },
+            {
+                id: 'chillan-stgo',
+                title: 'field•rutas•chillan•santiago',
+                origin: 'Chillán (Terminal María Teresa)',
+                destination: 'Santiago (Terminal San Borja)',
+                tag: 'chillan',
+                distance: '400 km',
+                time: '4 hrs 30 min',
+                company: 'EME Bus / Nilahue',
+                stops: ['San Carlos', 'Linares', 'Talca', 'Curicó', 'San Fernando'],
+                status: 'Activa'
+            }
+        ];
+
+        let scheduledRuns = JSON.parse(localStorage.getItem('chile_bus_runs_v3')) || [
+            {
+                id: 1,
+                driver: '@Chofer_Paredes',
+                company: 'EME Bus',
+                route: 'Santiago ➔ Chillán',
+                time: '08:15',
+                bus: 'Marcopolo G8 DD 1800',
+                status: 'En Ruta',
+                notes: 'Voz en 🛩┇rutas #1'
+            },
+            {
+                id: 2,
+                driver: '@Renato_Bus',
+                company: 'Buses Nilahue',
+                route: 'Santiago ➔ Pichilemu',
+                time: '10:30',
+                bus: 'Comil Invictus HD',
+                status: 'Programado',
+                notes: 'Paso por San Fernando'
+            }
+        ];
+
+        function saveSchedules() {
+            localStorage.setItem('chile_bus_runs_v3', JSON.stringify(scheduledRuns));
+        }
+
+        function renderHeroBoard() {
+            const tbody = document.getElementById('hero-board-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            scheduledRuns.forEach(run => {
+                let badgeColor = 'text-amber-400';
+                if (run.status === 'En Ruta') badgeColor = 'text-emerald-400 font-bold animate-pulse';
+                if (run.status === 'Embarcando') badgeColor = 'text-sky-400';
+
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-amber-500/10 hover:bg-amber-500/5";
+                tr.innerHTML = `
+                    <td class="py-2 font-bold">${run.time}</td>
+                    <td class="py-2">${run.route}</td>
+                    <td class="py-2"><span class="text-amber-300 font-bold">${run.company}</span> • ${run.bus}</td>
+                    <td class="py-2 text-slate-300">${run.driver}</td>
+                    <td class="py-2 text-right font-bold ${badgeColor}">${run.status}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderScheduleCards() {
+            const container = document.getElementById('schedule-cards-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            scheduledRuns.forEach(run => {
+                const isProtected = (run.status === 'En Ruta' || run.status === 'En Peaje');
+                const isOwner = (run.driver === currentUser);
+                const canDelete = !isProtected && isOwner;
+
+                const card = document.createElement('div');
+                card.className = "glass-panel p-4 rounded-2xl border border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3";
+                
+                card.innerHTML = `
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="bg-chile-blue/30 text-blue-300 font-mono font-bold text-xs px-2.5 py-0.5 rounded border border-chile-blue/40">
+                                🕒 ${run.time} HRS
+                            </span>
+                            <span class="text-xs font-black text-amber-300">${run.company}</span>
+                            <span class="text-xs font-bold text-white">${run.route}</span>
+                        </div>
+                        <div class="text-xs text-slate-300 flex flex-wrap gap-x-4">
+                            <span><i class="fa-solid fa-user text-slate-400 mr-1"></i> ${run.driver}</span>
+                            <span><i class="fa-solid fa-bus text-slate-400 mr-1"></i> ${run.bus}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-0 pt-2 sm:pt-0 border-slate-800">
+                        <span class="text-xs font-bold px-3 py-1 rounded-full bg-slate-900 text-emerald-400 border border-slate-700">
+                            ${run.status}
+                        </span>
+
+                        ${canDelete ? `
+                            <button onclick="deleteSchedule(${run.id})" class="text-slate-300 hover:text-chile-red p-2 bg-slate-900 rounded-lg border border-slate-700">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        ` : `
+                            <button onclick="showToast('⛔ Viaje protegido o de otro usuario', 'error')" class="text-slate-500 p-2 bg-slate-900 rounded-lg border border-slate-800 cursor-not-allowed">
+                                <i class="fa-solid fa-lock text-amber-500"></i>
+                            </button>
+                        `}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            renderHeroBoard();
+        }
+
+        function deleteSchedule(id) {
+            scheduledRuns = scheduledRuns.filter(r => r.id !== id);
+            saveSchedules();
+            renderScheduleCards();
+            showToast('Recorrido eliminado de la agenda');
+        }
+
+        document.getElementById('route-schedule-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const newRun = {
+                id: Date.now(),
+                driver: document.getElementById('sch-driver').value.trim(),
+                company: document.getElementById('sch-company').value,
+                route: document.getElementById('sch-route').value,
+                time: document.getElementById('sch-time').value,
+                bus: document.getElementById('sch-bus').value,
+                status: document.getElementById('sch-status').value,
+                notes: document.getElementById('sch-notes').value
+            };
+
+            scheduledRuns.unshift(newRun);
+            saveSchedules();
+            renderScheduleCards();
+            showToast('¡Recorrido de bus agendado con éxito!');
+            e.target.reset();
+        });
+
+        function renderRoutesGrid(filterTag = 'all', searchQuery = '') {
+            const container = document.getElementById('routes-grid');
+            if (!container) return;
+            container.innerHTML = '';
+
+            let filtered = initialRoutes;
+            if (filterTag !== 'all') filtered = filtered.filter(r => r.tag === filterTag);
+            if (searchQuery) {
+                const q = searchQuery.toLowerCase();
+                filtered = filtered.filter(r => r.title.toLowerCase().includes(q) || r.origin.toLowerCase().includes(q) || r.destination.toLowerCase().includes(q));
+            }
+
+            filtered.forEach(route => {
+                const card = document.createElement('div');
+                card.className = "glass-panel p-6 rounded-3xl border border-slate-700 space-y-3 flex flex-col justify-between";
+                card.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-chile-blue/30 text-blue-300 border border-chile-blue/40 uppercase">${route.tag}</span>
+                            <span class="text-xs text-amber-400 font-bold"><i class="fa-solid fa-clock"></i> ${route.time}</span>
+                        </div>
+                        <h3 class="text-sm font-black text-white font-mono">${route.title}</h3>
+                        <p class="text-xs text-amber-300 font-bold"><i class="fa-solid fa-bus text-blue-400 mr-1"></i> ${route.company}</p>
+                        
+                        <div class="text-xs text-slate-300 bg-slate-900 p-3 rounded-2xl border border-slate-800 space-y-1">
+                            <div><strong>Origen:</strong> ${route.origin}</div>
+                            <div><strong>Destino:</strong> ${route.destination}</div>
+                            <div class="text-slate-400 pt-1 border-t border-slate-800">Distancia: ${route.distance}</div>
+                        </div>
+                    </div>
+                    <button onclick="copyToClipboard('${route.title}')" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs border border-slate-700 transition-colors flex items-center justify-center gap-2">
+                        <i class="fa-regular fa-copy text-amber-400"></i> Copiar Canal
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterRouteTag(tag) {
+            renderRoutesGrid(tag);
+        }
+
+        function filterRoutes() {
+            const q = document.getElementById('route-search-input').value;
+            renderRoutesGrid('all', q);
+        }
+
+        function showCheckpointDetails(spot) {
+            const box = document.getElementById('checkpoint-info-box');
+            if (!box) return;
+
+            const spotsData = {
+                santiago: '🏙️ <strong>Santiago:</strong> Terminal San Borja y Terminal Sur. Punto de partida del corredor a la Zona Sur.',
+                rancagua: '🍇 <strong>Rancagua:</strong> KM 85. Parada en Cruce Travesía. Conexión con ramales mineros.',
+                sanfernando: '🍷 <strong>San Fernando:</strong> KM 140. Desvío al ramal costero Ruta I-50 hacia Pichilemu.',
+                pichilemu: '🏖️ <strong>Pichilemu:</strong> KM 210 (Costa). Terminal Rodoviario de surfistas y turistas.',
+                curico: '🍒 <strong>Curicó:</strong> KM 190. Peaje Quinta. Famoso por tortas curicanas.',
+                talca: '🌭 <strong>Talca:</strong> KM 255. Terminal Lorenzo Varoli. Parada tradicional de completos largos.',
+                chillan: '🥓 <strong>Chillán:</strong> KM 400. Terminal María Teresa. Destino final del corredor interurbano.'
+            };
+
+            box.innerHTML = spotsData[spot] || 'Selecciona un hito de la carretera.';
+        }
+
+        function updateTicketPreview() {
+            document.getElementById('prev-tkt-name').innerText = document.getElementById('tkt-name').value || 'Pasajero RP';
+            document.getElementById('prev-tkt-company').innerText = document.getElementById('tkt-company').value;
+            document.getElementById('prev-tkt-route').innerText = document.getElementById('tkt-route').value;
+            document.getElementById('prev-tkt-seat').innerText = `N° ${document.getElementById('tkt-seat').value || '12'}`;
+            document.getElementById('prev-tkt-price').innerText = document.getElementById('tkt-price').value || '$14.500 CLP';
+        }
+
+        function downloadTicketCard() {
+            const code = `PASAJE-RP-${Date.now().toString().slice(-6)}`;
+            copyToClipboard(`🎫 [BOLETO BUS CHILE RP]\nPasajero: ${document.getElementById('tkt-name').value}\nEmpresa: ${document.getElementById('tkt-company').value}\nTramo: ${document.getElementById('tkt-route').value}\nAsiento: N° ${document.getElementById('tkt-seat').value}\nCódigo: ${code}`);
+            showToast('¡Datos del pasaje copiados para el chat de Discord!');
+        }
+
+        function calculateTolls() {
+            const route = document.getElementById('toll-route-select').value;
+            const category = document.getElementById('toll-category').value;
+            const fuelPrice = parseFloat(document.getElementById('fuel-price').value) || 1050;
+
+            let numTolls = 4;
+            let distanceKm = 400;
+
+            if (route === 'stgo-talca') { numTolls = 3; distanceKm = 255; }
+            if (route === 'stgo-pichilemu') { numTolls = 2; distanceKm = 210; }
+            if (route === 'stgo-curico') { numTolls = 2; distanceKm = 190; }
+
+            const tollPrice = (category === 'bus3') ? 3500 : 3200;
+            const totalTolls = numTolls * tollPrice;
+
+            const litersNeeded = (distanceKm / 3.5);
+            const totalFuel = litersNeeded * fuelPrice;
+
+            document.getElementById('res-tolls').innerText = `$${totalTolls.toLocaleString('es-CL')} CLP`;
+            document.getElementById('res-fuel').innerText = `$${Math.round(totalFuel).toLocaleString('es-CL')} CLP`;
+            document.getElementById('res-total').innerText = `$${Math.round(totalTolls + totalFuel).toLocaleString('es-CL')} CLP`;
+
+            const tollsListBox = document.getElementById('tolls-list-box');
+            if (tollsListBox) {
+                tollsListBox.innerHTML = `
+                    <div class="flex justify-between bg-slate-900 p-2 rounded"><span>Peaje Angostura (KM 57)</span> <span>$${tollPrice} CLP</span></div>
+                    ${numTolls >= 2 ? `<div class="flex justify-between bg-slate-900 p-2 rounded"><span>Peaje Quinta (KM 162)</span> <span>$${tollPrice} CLP</span></div>` : ''}
+                    ${numTolls >= 3 ? `<div class="flex justify-between bg-slate-900 p-2 rounded"><span>Peaje Maquehua (KM 238)</span> <span>$${tollPrice} CLP</span></div>` : ''}
+                    ${numTolls >= 4 ? `<div class="flex justify-between bg-slate-900 p-2 rounded"><span>Peaje Retiro (KM 320)</span> <span>$${tollPrice} CLP</span></div>` : ''}
+                `;
+            }
+        }
+
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('Copiado al portapapeles');
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const el = document.getElementById('live-time-clock');
+            if (el) el.innerText = `${now.toLocaleTimeString('es-CL')} CLT`;
+        }
+        setInterval(updateClock, 1000);
+
+        const canvas = document.getElementById('stars-canvas');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            stars = [];
+            for (let i = 0; i < 70; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 1.5 + 0.5,
+                    alpha: Math.random(),
+                    speed: Math.random() * 0.02 + 0.005
+                });
+            }
+        }
+
+        function animateStars() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(s => {
+                s.alpha += s.speed;
+                if (s.alpha > 1 || s.alpha < 0) s.speed = -s.speed;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 255, ${Math.abs(s.alpha)})`;
+                ctx.fill();
+            });
+            requestAnimationFrame(animateStars);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        window.onload = function() {
+            resizeCanvas();
+            animateStars();
+            renderScheduleCards();
+            renderRoutesGrid();
+            calculateTolls();
+            updateClock();
+        };
+    </script>
+</body>
+</html>
